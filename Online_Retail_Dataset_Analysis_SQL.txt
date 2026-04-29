@@ -1,0 +1,224 @@
+SELECT * FROM df LIMIT 10;
+--ALTER TABLE df RENAME COLUMN totalunitpricein TO totalunitpriceineuros;
+-- !!! enable the above query line at the first time you run the script in order to fix the column name
+-- disable it (make it a comment) right after as the old column name does not exist any more.
+
+
+-- TOTAL REVENUE BY MONTH
+SELECT 
+	strftime('%Y-%m', invoicedate) AS year_month, -- extract month from data
+    ROUND(SUM(totalunitpriceineuros), 2) as total_revenue
+FROM df
+GROUP BY year_month
+order by year_month;
+
+-- We can see that the revenue starts rising from August 2011 with a great peak at November 2011.
+-- This peak makes sense because of the Black Friday / Pre-Christmas period.
+-- Right after, at December 2011 we see a great drop. Let's investigate why is this happening.
+
+-- find the most profitable months
+SELECT 
+	strftime('%Y-%m', invoicedate) AS year_month, 
+    ROUND(SUM(totalunitpriceineuros), 2) AS monthly_revenue
+FROM df
+GROUP BY year_month
+order by SUM(totalunitpriceineuros) DESC;
+
+SELECT
+	MIN(strftime('%Y-%m-%d', invoicedate)) AS first_date,
+    MAX(strftime('%Y-%m-%d', invoicedate)) as last_date
+FROM df;
+-- As we can see from the above query output the dataset reach only until the 9nth of December.
+-- So, its not a representative month. It is more safe to excluded this last month from the analysis.
+-- Now we analyze the data of the last whole yaar (12/2010 - 11/2011) 
+
+
+-- TOP PRODUCTS
+SELECT stockcode,
+	   description,
+       ROUND(SUM(totalunitpriceineuros), 2) as total_revenue
+FROM df
+GROUP BY stockcode
+ORDER BY SUM(totalunitpriceineuros) DESC
+LIMIT 10; -- top 10  products by total revenue
+-- We can see that the top-selling items are the Regancy Cakestand 3 Tier and the Paper Craft Little Birdie
+-- with 200k and 193k revenue respectively! 
+-- White Hanging Heart T-Light Holder, Party Bunting and Jumbo Bag Red Retrospot follow
+-- with revenue of 122k, 114k and 108k respectively.
+-- The rest of the top-selling products made a still-significan revenue of 93, 89, 76k.
+
+-- What about their quantity?
+SELECT stockcode, quantity, description
+FROM df
+GROUP BY stockcode
+ORDER BY quantity DESC;
+-- Paper Craft Little Birdie appear first on the quantity list with 80995 pieces.
+-- Obvisouly the Regancy Cakestand 3 Tier has clearly fewer items sold but its revenue comes from the much higher price as product.
+
+-- Let's see which are the least-selling products.
+-- This is important, as some actions are required on order to evaluate them and see what is the best decision for the company.
+-- We can either improve their website placement, improve their marketing, negotiate a better price from the manufractuer or simply stop selling them and look for more profitable options.
+
+SELECT stockcode,
+	   description,
+       ROUND(SUM(totalunitpriceineuros), 2) as total_revenue
+FROM df
+GROUP BY stockcode
+ORDER BY SUM(totalunitpriceineuros) ASC
+LIMIT 10;
+
+SELECT stockcode,
+	   description,
+       ROUND(SUM(totalunitpriceineuros), 2) as total_revenue
+FROM df
+GROUP BY stockcode
+ORDER BY SUM(totalunitpriceineuros) ASC;
+-- As we can see from the ascending output the products are very well spread-out to the revenue range. Especially at low prices.
+-- As the product revenue rises the differences tend to become bigger. So, the majority of the revenue comes only from a few products.
+
+-- Examining the above, lets compare the revenue of the top-selling items against the total revenue.
+SELECT ROUND(SUM(totalunitpriceineuros), 2)
+FROM df; -- returns 12,238,427.42
+
+SELECT ROUND(SUM(totalunitpriceineuros), 2) as total_of_top10
+FROM df
+where stockcode in (
+       SELECT stockcode
+       FROM df
+       group by stockcode, description
+       ORDER BY SUM(totalunitpriceineuros) DESC
+       LIMIT 10
+); -- returns 1,324,070.67 (that is the 10,81% of total revenue)
+
+-- and if take a look at the top 30 products:
+SELECT ROUND(SUM(totalunitpriceineuros), 2) as total_of_top10
+FROM df
+where stockcode in (
+       SELECT stockcode
+       FROM df
+       group by stockcode, description
+       ORDER BY SUM(totalunitpriceineuros) DESC
+       LIMIT 30
+); -- returns 2,266,471.22 (that is the 18,52%)
+-- while all the total products are:
+SELECT count(DISTINCT stockcode)
+from df; -- 3922 dinstinct stock codes
+-- Almost the 1/5 of the revenue comes from the 0,76% of the products!
+
+-- So, it is better to focus our attention to those well-selling products.
+-- As a significant percentage of the total revenue derives from only a few products.
+-- We can focus the marketing and business decisions on these products to boost the profits evem more.
+
+
+-- TOP CUSTOMERS & TOP INVOICES
+SELECT invoiceno,
+	   customerid,
+       ROUND(SUM(totalunitpriceineuros), 2) as customer_revenue
+FROM df
+group by customerid
+ORDER by SUM(totalunitpriceineuros) DESC
+LIMIT 10;
+-- the top invoice with customer_revenue has NULL customer ID!
+-- this maybe reffers to all NULL customer IDs together (as we grouped by customerid) and not one big, unkown customer.
+-- then we have the following top invoice-customerid pairs:
+-- 539491-14646 with customer revenue about 322k
+-- 537657-18102 with customer revenue about 298k
+-- 537448-17450 with customer revenue about 223k
+-- The rest have less than 200k revenue with great differences one from another.
+
+-- Let's see the known customer list without the NULL ones.
+SELECT invoiceno,
+	   customerid,
+       ROUND(SUM(totalunitpriceineuros), 2) as customer_revenue
+FROM df
+group by customerid
+HAVING customerid is not NULL
+ORDER by SUM(totalunitpriceineuros) DESC
+LIMIT 10;
+
+-- Now, let's identify regular vs. one-time customers
+-- First, count all (disctinct) customers
+SELECT count(DISTINCT customerid)
+from df; -- returns 4338 customers
+
+-- Customers that appear in more than one ininvoiceno
+SELECT COUNT(*)
+FROM (SELECT customerid, invoiceno
+	  from df
+	  GROUP BY customerid
+      having count(DISTINCT invoiceno) > 1
+); -- retunrns 2846 customers
+-- So, from the 4338 total customers, 2846 (~65%) are regular and 1493 (~35%) are one-time customers.
+-- This is a very useful insight as it shows as the customer loyality.
+-- 
+
+-- Lets explore the revenue that comes from each category:
+-- First the revenue of the regular cusotmers
+SELECT ROUND(SUM(unitprice * quantity), 2) as customer_revenue,
+       country,
+       customerid
+FROM df
+WHERE customerid IN (
+    SELECT customerid
+    FROM df
+    GROUP BY customerid
+    HAVING COUNT(DISTINCT invoiceno) > 1
+)
+GROUP BY customerid, country
+ORDER BY customer_revenue DESC; 
+-- the top 3  regualr customers are the same as at the above query with the highest invoices.
+-- Customer with customerid 14646 is from Netherlands and the rest from the UK.
+
+-- What about one-time customers?
+SELECT ROUND(SUM(totalunitpriceineuros), 2) as customer_revenue,
+       country,
+       customerid
+FROM df
+WHERE customerid IN (
+    SELECT customerid
+    FROM df
+    GROUP BY customerid
+    HAVING COUNT(DISTINCT invoiceno) = 1
+)
+GROUP BY customerid, country
+ORDER BY customer_revenue DESC; 
+-- Here, as one could expect, the revenues are much lower (only one 77k from the UK and all the rest lower than 6k)
+-- and there is a great diversity in the countries, as a reach-out/discount-offering strategy can be used.
+
+-- TOP COUNTRIES
+-- Top countries based on their total revenue
+SELECT country,
+       ROUND(SUM(totalunitpriceineuros), 2) as total_revenue
+from df
+GROUP BY country
+ORDER BY total_revenue desc;
+-- return: United Kingdom first with 10,352,005.71 
+-- The 2nd and 3rd place belongs to the Netherlands and EIRE (aka Ireland) with 328k and 325k respectively.
+
+-- But this is a generic fact and might not be as representative as we want.
+-- This might means that the majority of the customers might come from the US.
+-- Let's see how many cutomers comes from each country. 
+SELECT country,
+       COUNT(DISTINCT customerid) AS total_customers
+FROM df
+WHERE customerid IS NOT NULL
+GROUP BY country
+ORDER BY total_customers DESC;
+-- As expected the United Kingdom has the most customers (3920)
+-- Germany and France follow with just 94 and 87 customers, while all other countries have less than 30 customers each!
+
+-- Now let's identify the country of the top customers we found previously on the analysis.
+-- Do the results match with the above outputs?
+SELECT country,
+       customerid,
+       invoiceno,
+       ROUND(SUM(totalunitpriceineuros), 2) as total_revenue
+FROM df
+GROUP by customerid, invoiceno, country
+ORDER by total_revenue desc
+LIMIT 10;
+-- All top 10 posisitions belong to United Kingdon except top 7 and top 10 which belong to Australia (which has just 9 customers!).             
+-- Note that Australia is the 6th country based on the total revenue! This may be a small, but premium market!          
+             
+             
+             
