@@ -3,6 +3,16 @@
 ## Project Overview
 This project explores the Online Retail Dataset from Kaggle using Python for data cleaning and exploratory data analysis (EDA), followed by SQLite for relational querying and SQL practice.
 
+## Project Status: 🟢 In Progress
+**Current phase:** Data analysis with Python & SQL  
+**Next steps:**
+- ✅ Exploratory data analysis (complete)
+- ✅ SQL querying (complete)  
+- 🔄 Power BI dashboard (coming next)
+- 📊 Interactive visualizations (planned)
+
+**Last updated:** Arpil 2026
+
 ## Objectives
 - Clean and preprocess transactional retail data
 - Handle null values, duplicates, cancellations, and incorrect entries
