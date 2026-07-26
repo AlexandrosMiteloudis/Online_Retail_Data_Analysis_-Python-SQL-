@@ -5,7 +5,7 @@
 https://app.powerbi.com/groups/me/reports/020ee104-a83f-4e8a-bf5a-8a1af84cde46/71dad450a78053d060c5?experience=power-bi
 
 ## Project Overview
-This project explores the Online Retail Dataset from Kaggle, demonstrating an end-to-end data analysis pipeline. It utilizes Python for robust data cleaning, exploratory data analysis (EDA), and feature engineering, followed by exporting the structured data to SQLite for advanced, business-oriented SQL querying.
+This project explores the Online Retail Dataset from Kaggle, demonstrating an end-to-end data analysis pipeline. It utilizes Python for robust data cleaning, exploratory data analysis (EDA), and feature engineering, followed by exporting the structured data to SQLite for advanced, business-oriented SQL querying. Lastly, I reveal all the useful insights with an interactive Power BI dashboard.
 
 ## Objectives
 - Clean and preprocess messy, real-world transactional retail data.
